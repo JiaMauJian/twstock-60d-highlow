@@ -259,10 +259,9 @@
       </div>
       <div class="spacer"></div>
       <button id="toggleDrop">顯示接近跌停圖</button>
-      <button id="resetZoom">重置縮放</button>
       <button id="toggleTable">新低 Top10</button>
     </div>
-    <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大　·　點「重置縮放」還原　·　兩張圖同步</p>
+    <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大　·　點上方時間範圍即可還原　·　兩張圖同步</p>
 
     <div id="charts">
       <div class="card">
@@ -513,11 +512,6 @@
       document.getElementById('toggleDrop').textContent = show ? '隱藏接近跌停圖' : '顯示接近跌停圖';
       // 圖表若在隱藏容器內建立，尺寸會是 0，展開時重算一次
       if (show && chartDrop) chartDrop.resize();
-    });
-
-    document.getElementById('resetZoom').addEventListener('click', () => {
-      if (chartLow) chartLow.resetZoom();
-      if (chartDrop) chartDrop.resetZoom();
     });
 
     document.getElementById('toggleTable').addEventListener('click', () => {
