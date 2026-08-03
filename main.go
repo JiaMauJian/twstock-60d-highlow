@@ -77,7 +77,7 @@ type Data struct {
 	OptionNum    string
 	IsNewLows    map[string]int // 日期 -> 是否創新低(1/0)，該股當天沒交易則不存在此 key
 	IsNewHighs   map[string]int // 日期 -> 是否創新高(1/0)，該股當天沒交易則不存在此 key
-	IsSharpDrops map[string]int // 日期 -> 當日相對前一交易日收盤是否跌幅 > 5%(1/0)
+	IsSharpDrops map[string]int // 日期 -> 當日相對前一交易日收盤是否跌幅 >= 9%(接近跌停)(1/0)
 	Url          string
 }
 
@@ -95,8 +95,8 @@ type MarketDay struct {
 	Total     int     `json:"total"`     // 當日有交易的家數(比例分母)
 	LowPct    float64 `json:"lowPct"`    // 創新低比例(%)
 	HighPct   float64 `json:"highPct"`   // 創新高比例(%)
-	DropCount int     `json:"dropCount"` // 當日單日跌幅 > 5% 家數
-	DropPct   float64 `json:"dropPct"`   // 當日單日跌幅 > 5% 比例(%)
+	DropCount int     `json:"dropCount"` // 當日單日跌幅 >= 9%(接近跌停) 家數
+	DropPct   float64 `json:"dropPct"`   // 當日單日跌幅 >= 9%(接近跌停) 比例(%)
 	Valid     bool    `json:"valid"`     // 個股資料是否正常；false 表示當天各項統計應留空白
 }
 
@@ -252,7 +252,7 @@ func main() {
 	sumInXDayLow := map[string]int{}
 	sumInXDayHigh := map[string]int{}
 	sumInXDayHighCount := map[string]int{}
-	sumSharpDrop := map[string]int{} // 當日單日跌幅 > 5% 家數
+	sumSharpDrop := map[string]int{} // 當日單日跌幅 >= 9%(接近跌停) 家數
 	for _, d := range allRes {
 		for date, v := range d.IsNewLows {
 			sumInXDayLow[date] += v
@@ -479,14 +479,14 @@ func DoCalc(stockInfo StockInfo, allRes *[]Data, nilCloseDates []string) {
 		}
 		isNewLows[currentDate] = isNewLow
 
-		// 單日跌幅 > 5%：跟前一個有效收盤比較
+		// 單日跌幅 >= 9%(接近跌停)：跟前一個有效收盤比較
 		isSharpDrop := 0
 		for k := e - 1; k >= 0; k-- {
 			if close[k] == nil {
 				continue
 			}
 			prev := close[k].(float64)
-			if prev > 0 && (cur-prev)/prev <= -0.05 {
+			if prev > 0 && (cur-prev)/prev <= -0.09 {
 				isSharpDrop = 1
 			}
 			break

@@ -127,11 +127,11 @@
       </div>
 
       <div class="card">
-        <h2 id="dropTitle">大盤 × 單日跌幅 &gt;5% 比例</h2>
-        <p class="sub">柱：當日跌幅逾 5% 家數占比（%，左軸）　線：大盤加權指數（右軸）　—— 看單日急跌</p>
+        <h2 id="dropTitle">大盤 × 單日跌幅 ≥9%（接近跌停）比例</h2>
+        <p class="sub">柱：當日跌幅逾 9% 家數占比（%，左軸）　線：大盤加權指數（右軸）　—— 台股漲跌幅 ±10%，≥9% 約當鎖跌停</p>
         <div class="chart-box"><canvas id="chartDrop"></canvas></div>
         <div class="legend">
-          <span><i class="swatch" style="background:var(--series-drop)"></i>單日跌幅&gt;5%比例</span>
+          <span><i class="swatch" style="background:var(--series-drop)"></i>單日跌幅≥9%比例</span>
           <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
         </div>
       </div>
@@ -251,7 +251,7 @@
       if (chartDrop) chartDrop.destroy();
 
       chartLow = makeCombo('chartLow', data, labels, 'lowPct', 'lowCount', COL.low, '創新低');
-      chartDrop = makeCombo('chartDrop', data, labels, 'dropPct', 'dropCount', COL.drop, '單日跌幅>5%');
+      chartDrop = makeCombo('chartDrop', data, labels, 'dropPct', 'dropCount', COL.drop, '單日跌幅≥9%');
     }
 
     // 一張圖疊放：比例柱狀（左軸 %）＋ 大盤指數折線（右軸）
