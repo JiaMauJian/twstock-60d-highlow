@@ -111,6 +111,7 @@
         <button data-days="0">全部</button>
       </div>
       <div class="spacer"></div>
+      <button id="toggleDrop">顯示接近跌停圖</button>
       <button id="resetZoom">重置縮放</button>
       <button id="toggleTable">表格檢視</button>
     </div>
@@ -127,7 +128,7 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card hidden" id="dropCard">
         <h2 id="dropTitle">大盤 × 單日跌幅 ≥9%（接近跌停）比例</h2>
         <p class="sub">柱：當日跌幅逾 9% 家數占比（%，左軸）　線：大盤加權指數（右軸）　—— 台股漲跌幅 ±10%，≥9% 約當鎖跌停</p>
         <div class="chart-box"><canvas id="chartDrop"></canvas></div>
@@ -346,6 +347,15 @@
     document.getElementById('ranges').addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (btn) setRange(Number(btn.dataset.days));
+    });
+
+    document.getElementById('toggleDrop').addEventListener('click', () => {
+      const card = document.getElementById('dropCard');
+      const show = card.classList.contains('hidden');
+      card.classList.toggle('hidden', !show);
+      document.getElementById('toggleDrop').textContent = show ? '隱藏接近跌停圖' : '顯示接近跌停圖';
+      // 圖表若在隱藏容器內建立，尺寸會是 0，展開時重算一次
+      if (show && chartDrop) chartDrop.resize();
     });
 
     document.getElementById('resetZoom').addEventListener('click', () => {
