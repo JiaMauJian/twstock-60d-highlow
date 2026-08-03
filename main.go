@@ -159,8 +159,10 @@ func main() {
 
 	if deleteData == "y" {
 		os.RemoveAll("data/")
-		os.MkdirAll("data/", 0600)
 	}
+	// 資料夾權限要有 execute 位元(0755)才能在裡面建立檔案；
+	// 0600 在 Linux 會導致 open data/xxxx: permission denied
+	os.MkdirAll("data", 0755)
 
 	// 下載公司清單
 	stockInfos, err := DownloadStockList()
