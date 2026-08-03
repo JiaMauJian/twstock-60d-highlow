@@ -100,6 +100,9 @@
         <button data-days="90">近 3 月</button>
         <button data-days="180">近 6 月</button>
         <button data-days="365" class="active">近 1 年</button>
+        <button data-days="1095">近 3 年</button>
+        <button data-days="1825">近 5 年</button>
+        <button data-days="3650">近 10 年</button>
         <button data-days="0">全部</button>
       </div>
       <div class="spacer"></div>
@@ -108,21 +111,21 @@
 
     <div id="charts">
       <div class="card">
-        <h2 id="highTitle">大盤 × 創 X 日新高比例</h2>
-        <p class="sub">柱：創新高比例（%，左軸）　線：大盤加權指數（右軸）</p>
-        <div class="chart-box"><canvas id="chartHigh"></canvas></div>
-        <div class="legend">
-          <span><i class="swatch" style="background:var(--series-high)"></i>創新高比例</span>
-          <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
-        </div>
-      </div>
-
-      <div class="card">
         <h2 id="lowTitle">大盤 × 創 X 日新低比例</h2>
         <p class="sub">柱：創新低比例（%，左軸）　線：大盤加權指數（右軸）</p>
         <div class="chart-box"><canvas id="chartLow"></canvas></div>
         <div class="legend">
           <span><i class="swatch" style="background:var(--series-low)"></i>創新低比例</span>
+          <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 id="highTitle">大盤 × 創 X 日新高比例</h2>
+        <p class="sub">柱：創新高比例（%，左軸）　線：大盤加權指數（右軸）</p>
+        <div class="chart-box"><canvas id="chartHigh"></canvas></div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--series-high)"></i>創新高比例</span>
           <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
         </div>
       </div>
