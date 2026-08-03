@@ -19,15 +19,17 @@ go run . -auto -clear   # 先清空 data/ 再全部重抓
 
 ## 網頁版（GitHub Actions + GitHub Pages）
 
-架構：GitHub Actions 每個交易日收盤後自動執行爬蟲 → 產生 `web/data.json` → 部署到 GitHub Pages，
-任何人開網址即可看走勢圖。全程免費、不需自備伺服器。
+架構：外部排程（cron-job.org）每個交易日收盤後呼叫 GitHub API 觸發 workflow →
+執行爬蟲產生 `web/data.json` → 部署到 GitHub Pages，任何人開網址即可看走勢圖。全程免費、不需自備伺服器。
 
 ```
-[排程] .github/workflows/update.yml (cron 每日 17:30 台灣時間)
-   └ go run . -auto → web/data.json
+[排程] cron-job.org (每日 17:30 台灣時間) ──POST──▶ GitHub API (workflow_dispatch)
+[執行] .github/workflows/update.yml → go run . -auto → web/data.json
 [部署] GitHub Pages ← 上傳 web/ 資料夾
 [前端] web/index.html 讀 data.json，用 Chart.js 畫圖
 ```
+
+> 不用 GitHub 內建的 `schedule` cron，因為它在尖峰時段常延遲甚至漏跑；改用外部排程主動觸發較可靠。
 
 ### 首次上線步驟
 
@@ -47,7 +49,30 @@ go run . -auto -clear   # 先清空 data/ 再全部重抓
 3. **手動觸發一次**：進入 **Actions** 分頁 → 選「更新股價新高新低資料並部署」→ **Run workflow**。
    跑完後，Pages 網址（`https://<帳號>.github.io/<repo名稱>/`）即可看到圖表。
 
-之後每個交易日會自動更新，也可隨時在 Actions 頁面手動觸發。
+### 設定 cron-job.org 自動排程
+
+用 [cron-job.org](https://console.cron-job.org/) 每個交易日定時呼叫 GitHub API 觸發 workflow：
+
+1. **建立 GitHub Token**：GitHub → **Settings → Developer settings → Personal access tokens → Fine-grained tokens**。
+   - Repository access：只選這個 repo
+   - Permissions → **Actions: Read and write**
+   - 產生後複製 token（只會顯示一次）
+
+2. **在 cron-job.org 新增 Cronjob**：
+   - **URL**：`https://api.github.com/repos/JiaMauJian/twstock-60d-highlow/actions/workflows/update.yml/dispatches`
+   - **Request method**：`POST`
+   - **Headers**：
+     ```
+     Accept: application/vnd.github+json
+     Authorization: Bearer <你的_TOKEN>
+     X-GitHub-Api-Version: 2022-11-28
+     ```
+   - **Request body**：`{"ref":"main"}`
+   - **Schedule**：每週一～五 17:30（台灣時間）
+
+   成功時 GitHub API 回應 **204 No Content**（無內容即代表已觸發）。
+
+之後即由 cron-job.org 定時觸發，也可隨時在 Actions 頁面手動 Run workflow。
 
 ### 注意事項
 

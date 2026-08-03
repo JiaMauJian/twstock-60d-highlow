@@ -1,10 +1,9 @@
 name: 更新股價新高新低資料並部署
 
 on:
-  schedule:
-    # UTC 09:30 = 台灣時間 17:30（收盤後）。GitHub cron 用 UTC。
-    - cron: "30 9 * * 1-5"
-  workflow_dispatch: # 允許在 Actions 頁面手動觸發
+  # 排程改由外部 cron-job.org 定時呼叫 GitHub API 觸發（GitHub 內建 schedule 常漏跑）。
+  # 呼叫方式見 README。此處保留 workflow_dispatch 讓 API 與手動皆可觸發。
+  workflow_dispatch:
 
 # 讓 workflow 能寫回 repo（快取 data/）並部署 Pages
 permissions:
