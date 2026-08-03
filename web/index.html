@@ -543,6 +543,9 @@
         document.getElementById('meta').textContent =
           `資料筆數 ${ALL.length}　·　更新於 ${json.generated || '—'}`;
         document.getElementById('footer').innerHTML =
+          `延伸參考：` +
+          `<a href="https://ai.finlab.tw/tw_market/" target="_blank" rel="noopener">大盤融資維持率（FinLab）↗</a>　·　` +
+          `<a href="https://www.wantgoo.com/index/0000" target="_blank" rel="noopener">大盤月MACD（Wantgoo）↗</a><br>` +
           `資料來源：Yahoo Finance／臺灣證券交易所　·　「家數」為當日有交易且上市滿 ${DAY} 日的個股數（比例分母）。`;
 
         if (!ALL.length) {
