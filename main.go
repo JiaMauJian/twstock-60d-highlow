@@ -107,7 +107,7 @@ type WebOutput struct {
 	Days         []MarketDay `json:"days"`
 }
 
-var dataRange string = "10y" // 1y 5y 10y 20y
+var dataRange string = "20y" // 1y 5y 10y 20y
 
 var dayParameter int = 60
 

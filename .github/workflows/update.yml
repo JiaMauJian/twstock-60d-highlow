@@ -5,9 +5,9 @@ on:
   # 呼叫方式見 README。此處保留 workflow_dispatch 讓 API 與手動皆可觸發。
   workflow_dispatch:
 
-# 讓 workflow 能寫回 repo（快取 data/）並部署 Pages
+# 部署 GitHub Pages 所需權限
 permissions:
-  contents: write
+  contents: read
   pages: write
   id-token: write
 
@@ -27,17 +27,10 @@ jobs:
         with:
           go-version: "1.21"
 
-      # 還原上一次跑完的 data/ 個股快取，避免每天重抓上千檔
-      - name: Restore data cache
-        uses: actions/cache@v4
-        with:
-          path: data
-          key: stock-data-${{ github.run_id }}
-          restore-keys: |
-            stock-data-
-
-      - name: Run crawler (auto mode)
-        run: go run . -auto
+      # 每次清空重抓，確保拿到完整 20 年且最新的資料
+      # （不使用 cache：舊檔存在會被跳過而永遠不更新）
+      - name: Run crawler (auto mode, fresh fetch)
+        run: go run . -auto -clear
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
