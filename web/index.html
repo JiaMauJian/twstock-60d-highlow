@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>台股創X日新高新低比例</title>
+  <title>台股創X日新低比例</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
@@ -92,7 +92,7 @@
 <body>
   <div class="wrap">
     <header>
-      <h1 id="title">台股創 X 日新高新低比例</h1>
+      <h1 id="title">台股創 X 日新低比例</h1>
       <p class="meta" id="meta">載入中…</p>
     </header>
 
@@ -120,16 +120,6 @@
         <div class="chart-box"><canvas id="chartLow"></canvas></div>
         <div class="legend">
           <span><i class="swatch" style="background:var(--series-low)"></i>創新低比例</span>
-          <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 id="highTitle">大盤 × 創 X 日新高比例</h2>
-        <p class="sub">柱：創新高比例（%，左軸）　線：大盤加權指數（右軸）</p>
-        <div class="chart-box"><canvas id="chartHigh"></canvas></div>
-        <div class="legend">
-          <span><i class="swatch" style="background:var(--series-high)"></i>創新高比例</span>
           <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
         </div>
       </div>
@@ -166,8 +156,7 @@
     let ALL = [];        // 全部資料
     let DAY = 60;        // dayParameter
     let rangeDays = 365; // 目前選取範圍
-    let chartHigh = null, chartLow = null;
-    let syncing = false; // 防止兩圖同步縮放時互相觸發成無限迴圈
+    let chartLow = null;
 
     // 註冊縮放外掛（CDN script 版全域名稱可能不同，兩種都試）
     (function registerZoom() {
@@ -175,21 +164,7 @@
       try { if (zp && Chart.register) Chart.register(zp); } catch (e) { /* 已註冊則略過 */ }
     })();
 
-    // 一張圖縮放後，把相同的 x 範圍套到另一張，保持兩圖對齊
-    function syncZoom(src) {
-      if (syncing) return;
-      const other = src === chartHigh ? chartLow : chartHigh;
-      if (!other || !other.scales) return;
-      syncing = true;
-      try {
-        const x = src.scales.x;
-        other.zoomScale('x', { min: x.min, max: x.max }, 'none');
-      } finally {
-        syncing = false;
-      }
-    }
-
-    // 共用的 Chart.js 預設，讓兩張圖對齊、風格一致
+    // 共用的 Chart.js 預設
     Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif';
     Chart.defaults.color = COL.muted;
 
@@ -245,10 +220,8 @@
       const data = sliceRange(rangeDays);
       const labels = data.map(d => d.date);
 
-      if (chartHigh) chartHigh.destroy();
       if (chartLow) chartLow.destroy();
 
-      chartHigh = makeCombo('chartHigh', data, labels, 'highPct', 'highCount', COL.high, '創新高');
       chartLow = makeCombo('chartLow', data, labels, 'lowPct', 'lowCount', COL.low, '創新低');
     }
 
@@ -304,7 +277,6 @@
                 pinch: { enabled: true },
                 drag: { enabled: true, backgroundColor: 'rgba(74,58,167,0.12)' },
                 mode: 'x',
-                onZoomComplete: ({ chart }) => syncZoom(chart),
               },
               limits: { x: { minRange: 5 } },
             },
@@ -347,7 +319,6 @@
 
     document.getElementById('resetZoom').addEventListener('click', () => {
       if (chartLow) chartLow.resetZoom();
-      if (chartHigh) chartHigh.resetZoom();
     });
 
     document.getElementById('toggleTable').addEventListener('click', () => {
@@ -368,8 +339,7 @@
         ALL = (json.days || []).filter(d => d.date);
         DAY = json.dayParameter || 60;
 
-        document.getElementById('title').textContent = `台股創 ${DAY} 日新高新低`;
-        document.getElementById('highTitle').textContent = `大盤 × 創 ${DAY} 日新高比例`;
+        document.getElementById('title').textContent = `台股創 ${DAY} 日新低比例`;
         document.getElementById('lowTitle').textContent = `大盤 × 創 ${DAY} 日新低比例`;
         document.getElementById('meta').textContent =
           `資料筆數 ${ALL.length}　·　更新於 ${json.generated || '—'}`;
