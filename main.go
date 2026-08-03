@@ -8,11 +8,9 @@ import (
 	"net/http"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/xuri/excelize/v2"
 	"golang.org/x/net/html"
 )
 
@@ -96,6 +94,7 @@ type MarketDay struct {
 	Total     int     `json:"total"`     // 當日有交易的家數(比例分母)
 	LowPct    float64 `json:"lowPct"`    // 創新低比例(%)
 	HighPct   float64 `json:"highPct"`   // 創新高比例(%)
+	Valid     bool    `json:"valid"`     // 個股資料是否正常；false 表示當天新高/新低應留空白
 }
 
 // WebOutput 是 web/data.json 的完整結構
@@ -187,22 +186,7 @@ func main() {
 	}
 	fmt.Printf("\n已下載家數: %d\n\n", len(dataFs))
 
-	fmt.Printf("\n\n初始化Excel中...\n")
-	xlsxName := fmt.Sprintf("股價創%d日新高新低比例.xlsx", dayParameter)
-	var f *excelize.File
-	if _, statErr := os.Stat(xlsxName); statErr == nil {
-		// 已有既存檔案就開啟沿用
-		f, err = excelize.OpenFile(xlsxName)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		// 檔案不存在（例如 CI 環境）就新建，後續會自行建立所需工作表
-		f = excelize.NewFile()
-	}
 	defer func() {
-		f.SaveAs(xlsxName)
-		f.Close()
 		if *autoMode {
 			fmt.Println("完成")
 		} else {
@@ -215,22 +199,7 @@ func main() {
 		1: "https://query1.finance.yahoo.com/v8/finance/chart/^twii",
 		2: "https://query1.finance.yahoo.com/v8/finance/chart/^twoii",
 	}
-
 	marketUrl := markets[marketChoice]
-	sheetMarket := "大盤"
-	sheetStockInXDayLOW := fmt.Sprintf("股價創%d日新低個股", dayParameter)
-	sheetStockInXDayHIGH := fmt.Sprintf("股價創%d日新高個股", dayParameter)
-	f.DeleteSheet(sheetMarket)
-	f.DeleteSheet(sheetStockInXDayLOW)
-	f.DeleteSheet(sheetStockInXDayHIGH)
-
-	idxMarket := f.NewSheet(sheetMarket)
-	f.NewSheet(sheetStockInXDayLOW)
-	f.NewSheet(sheetStockInXDayHIGH)
-	f.SetActiveSheet(idxMarket)
-	f.DeleteSheet("Sheet1") // 移除 NewFile() 產生的預設空白表；OpenFile 情況下不存在，無副作用
-
-	Header(f, sheetMarket, sheetStockInXDayLOW, sheetStockInXDayHIGH)
 
 	// 抓大盤資料
 	tse, err := fetchMarketData(marketUrl, dataRange)
@@ -252,48 +221,20 @@ func main() {
 
 	fmt.Println("沒開盤日期", nilCloseDates)
 
-	// 大盤Sheet
-	//寫入大盤資料
-	k := 0
-	for i, t := range tseTimestamp {
-
+	// 偵測 Yahoo 資料異常日：大盤有值、但幾乎所有個股收盤為 null，
+	// 造成分母只有個位數的假數據。這類日子「不排除」（仍留在表頭），
+	// 但後面會把新高/新低留空白，讓人看得出當天資料有問題。
+	participation := buildParticipation(filterStockInfos)
+	var marketDates []string
+	for _, t := range tseTimestamp {
 		date := time.Unix(int64(t), 0).Format("2006/01/02")
-		volumneValue := tse.Chart.Result[0].Indicators.Quote[0].Volume[i]
-		openValue := tse.Chart.Result[0].Indicators.Quote[0].Open[i]
-		highValue := tse.Chart.Result[0].Indicators.Quote[0].High[i]
-		lowValue := tse.Chart.Result[0].Indicators.Quote[0].Low[i]
-		closeValue := tse.Chart.Result[0].Indicators.Quote[0].Close[i]
-
-		if contains(nilCloseDates, date) { //沒開盤就不寫入Sheet
+		if contains(nilCloseDates, date) {
 			continue
 		}
-
-		// 大盤Sheet
-		// 從第二列開始
-		f.SetCellValue(sheetMarket, fmt.Sprintf("A%d", k+2), date)
-		f.SetCellValue(sheetMarket, fmt.Sprintf("B%d", k+2), volumneValue)
-		f.SetCellValue(sheetMarket, fmt.Sprintf("C%d", k+2), openValue)
-		f.SetCellValue(sheetMarket, fmt.Sprintf("D%d", k+2), highValue)
-		f.SetCellValue(sheetMarket, fmt.Sprintf("E%d", k+2), lowValue)
-		f.SetCellValue(sheetMarket, fmt.Sprintf("F%d", k+2), closeValue)
-		k++
+		marketDates = append(marketDates, date)
 	}
-
-	// 個股Sheet
-	// 填日期從B1往右填，並記錄欄位順序供後續對齊
-	k = 2
-	var orderedDates []string
-	for i := len(tseTimestamp) - 1; i >= 0; i-- {
-		date := time.Unix(int64(tseTimestamp[i]), 0).Format("2006/01/02")
-		if contains(nilCloseDates, date) { //沒開盤就不寫入Sheet
-			continue
-		}
-		c, _ := excelize.CoordinatesToCellName(k, 1)
-		f.SetCellValue(sheetStockInXDayLOW, c, date)
-		f.SetCellValue(sheetStockInXDayHIGH, c, date)
-		orderedDates = append(orderedDates, date)
-		k++
-	}
+	badDates := findLowParticipationDates(marketDates, participation)
+	fmt.Println("個股參與度異常日(新高新低留空白):", badDates)
 
 	fmt.Printf("最高最低計算中...\n")
 	allRes := []Data{}
@@ -302,128 +243,59 @@ func main() {
 		fmt.Printf("\r(%d/%d)", i+1, size)
 	}
 
-	// 按照股號先排序
-	sort.Slice(allRes, func(i, j int) bool {
-		return allRes[i].OptionNum < allRes[j].OptionNum
-	})
-
-	// 個股Sheet
-	fmt.Println("將全市場每日低於股價創60日新低的結果填入...")
-	for i, d := range allRes {
-
-		f.SetCellValue(sheetStockInXDayLOW, fmt.Sprintf("A%d", i+2), d.OptionNum)
-
-		// 照大盤表頭的日期逐欄對齊；該股當天沒交易(map 沒有此日期)就留空，不填 0
-		for col, date := range orderedDates {
-			n, ok := d.IsNewLows[date]
-			if !ok {
-				continue
-			}
-			c, _ := excelize.CoordinatesToCellName(col+2, i+2)
-			f.SetCellValue(sheetStockInXDayLOW, c, n)
-		}
-
-		fmt.Printf("\r(%d/%d)", i+1, len(allRes))
-	}
-	fmt.Println()
-
-	fmt.Println("依照日期統計股價創60日新低的家數...")
+	// 依日期在記憶體中聚合各股的新高/新低結果
+	// sumInXDayLow/High = 當日創新低/新高家數；sumInXDayHighCount = 當日有計算值的家數(比例分母)
+	fmt.Println("依日期統計新高新低家數...")
 	sumInXDayLow := map[string]int{}
-	rowsStock, _ := f.GetRows(sheetStockInXDayLOW)
-	for j := 2; j <= len(rowsStock[0]); j++ {
-		c, _ := excelize.CoordinatesToCellName(j, 1)
-		d, _ := f.GetCellValue(sheetStockInXDayLOW, c)
-
-		for i := 2; i <= len(rowsStock); i++ {
-			c2, _ := excelize.CoordinatesToCellName(j, i)
-			d2, _ := f.GetCellValue(sheetStockInXDayLOW, c2)
-			v, _ := strconv.Atoi(d2)
-			sumInXDayLow[d] += v
-		}
-
-		fmt.Printf("\r(%d/%d)", j, len(rowsStock[0]))
-	}
-	fmt.Println()
-
-	fmt.Println("將全市場每日高於股價創60日新高的結果填入...")
-	for i, d := range allRes {
-
-		f.SetCellValue(sheetStockInXDayHIGH, fmt.Sprintf("A%d", i+2), d.OptionNum)
-
-		// 照大盤表頭的日期逐欄對齊；該股當天沒交易(map 沒有此日期)就留空，不填 0
-		for col, date := range orderedDates {
-			n, ok := d.IsNewHighs[date]
-			if !ok {
-				continue
-			}
-			c, _ := excelize.CoordinatesToCellName(col+2, i+2)
-			f.SetCellValue(sheetStockInXDayHIGH, c, n)
-		}
-
-		fmt.Printf("\r(%d/%d)", i+1, len(allRes))
-	}
-	fmt.Println()
-
-	fmt.Println("依照日期統計股價創60日新高的家數...")
-	sumInXDayHighCount := map[string]int{}
 	sumInXDayHigh := map[string]int{}
-	rowsStock, _ = f.GetRows(sheetStockInXDayHIGH)
-	for j := 2; j <= len(rowsStock[0]); j++ {
-		c, _ := excelize.CoordinatesToCellName(j, 1)
-		d, _ := f.GetCellValue(sheetStockInXDayHIGH, c)
-
-		for i := 2; i <= len(rowsStock); i++ {
-			c2, _ := excelize.CoordinatesToCellName(j, i)
-			d2, _ := f.GetCellValue(sheetStockInXDayHIGH, c2)
-			v, err := strconv.Atoi(d2)
-			sumInXDayHigh[d] += v
-			if err == nil {
-				sumInXDayHighCount[d]++
-			}
+	sumInXDayHighCount := map[string]int{}
+	for _, d := range allRes {
+		for date, v := range d.IsNewLows {
+			sumInXDayLow[date] += v
 		}
-
-		fmt.Printf("\r(%d/%d)", j, len(rowsStock[0]))
+		for date, v := range d.IsNewHighs {
+			sumInXDayHigh[date] += v
+			sumInXDayHighCount[date]++
+		}
 	}
-	fmt.Println()
 
-	// 大盤Sheet
-	fmt.Println("將統計結果填入...")
-	rowsTse, _ := f.GetRows(sheetMarket)
+	// 依時間順序(舊→新)組出每日統計，輸出給前端
+	fmt.Println("整理每日統計...")
 	var webDays []MarketDay
-	for i := 2; i <= len(rowsTse); i++ {
-		d, _ := f.GetCellValue(sheetMarket, fmt.Sprintf("A%d", i))
-		f.SetCellValue(sheetMarket, fmt.Sprintf("G%d", i), sumInXDayLow[d])
-		f.SetCellValue(sheetMarket, fmt.Sprintf("H%d", i), sumInXDayHigh[d])
-		f.SetCellValue(sheetMarket, fmt.Sprintf("I%d", i), sumInXDayHighCount[d])
-
-		var lowP, highP float64
-		if sumInXDayHighCount[d] == 0 {
-			f.SetCellValue(sheetMarket, fmt.Sprintf("J%d", i), 0)
-			f.SetCellValue(sheetMarket, fmt.Sprintf("K%d", i), 0)
-		} else {
-			lowP = float64(sumInXDayLow[d]) / float64(sumInXDayHighCount[d]) * 100
-			highP = float64(sumInXDayHigh[d]) / float64(sumInXDayHighCount[d]) * 100
-			f.SetCellValue(sheetMarket, fmt.Sprintf("J%d", i), lowP)
-			f.SetCellValue(sheetMarket, fmt.Sprintf("K%d", i), highP)
+	for i, t := range tseTimestamp {
+		date := time.Unix(int64(t), 0).Format("2006/01/02")
+		if contains(nilCloseDates, date) { // 大盤沒開盤的日子不輸出
+			continue
 		}
 
-		// 同步收集給前端網頁用的資料
-		closeStr, _ := f.GetCellValue(sheetMarket, fmt.Sprintf("F%d", i))
-		closeVal, _ := strconv.ParseFloat(closeStr, 64)
+		closeVal := 0.0
+		if cv := tse.Chart.Result[0].Indicators.Quote[0].Close[i]; cv != nil {
+			closeVal = cv.(float64)
+		}
+
+		// 資料異常日：新高/新低留空白(Valid=false)，只保留大盤收盤
+		if contains(badDates, date) {
+			webDays = append(webDays, MarketDay{Date: date, Close: closeVal, Valid: false})
+			continue
+		}
+
+		total := sumInXDayHighCount[date]
+		var lowP, highP float64
+		if total > 0 {
+			lowP = float64(sumInXDayLow[date]) / float64(total) * 100
+			highP = float64(sumInXDayHigh[date]) / float64(total) * 100
+		}
 		webDays = append(webDays, MarketDay{
-			Date:      d,
+			Date:      date,
 			Close:     closeVal,
-			LowCount:  sumInXDayLow[d],
-			HighCount: sumInXDayHigh[d],
-			Total:     sumInXDayHighCount[d],
+			LowCount:  sumInXDayLow[date],
+			HighCount: sumInXDayHigh[date],
+			Total:     total,
 			LowPct:    lowP,
 			HighPct:   highP,
+			Valid:     true,
 		})
-
-		fmt.Printf("\r(%d/%d)", i, len(rowsTse))
-
 	}
-	fmt.Println()
 
 	// 輸出前端網頁用的 JSON
 	writeWebJSON(webDays)
@@ -647,33 +519,58 @@ func contains(slice []string, value string) bool {
 	return false
 }
 
-func ClearCells(f *excelize.File, sheet string) {
-	rows, _ := f.GetRows(sheet)
-	for i, row := range rows {
-		for j := range row {
-			c, _ := excelize.CoordinatesToCellName(j+1, i+1)
-			f.SetCellValue(sheet, c, "")
+// buildParticipation 統計每個日期有多少檔個股有非 null 收盤（真正有交易的家數）
+func buildParticipation(stockInfos []StockInfo) map[string]int {
+	participation := map[string]int{}
+	for _, si := range stockInfos {
+		body, err := ioutil.ReadFile("data/" + si.Code)
+		if err != nil {
+			continue
+		}
+		var stock Stock
+		if json.Unmarshal(body, &stock) != nil {
+			continue
+		}
+		if len(stock.Chart.Result) == 0 {
+			continue
+		}
+		ts := stock.Chart.Result[0].Timestamp
+		closes := stock.Chart.Result[0].Indicators.Quote[0].Close
+		for i, t := range ts {
+			if i < len(closes) && closes[i] != nil {
+				date := time.Unix(int64(t), 0).Format("2006/01/02")
+				participation[date]++
+			}
 		}
 	}
+	return participation
 }
 
-func Header(f *excelize.File, sheet1 string, sheet2 string, sheet3 string) {
-	f.SetCellValue(sheet1, "A1", "日期")
-	f.SetCellValue(sheet1, "B1", "成交量")
-	f.SetCellValue(sheet1, "C1", "開盤價")
-	f.SetCellValue(sheet1, "D1", "最高價")
-	f.SetCellValue(sheet1, "E1", "最低價")
-	f.SetCellValue(sheet1, "F1", "收盤價")
-	f.SetCellValue(sheet1, "G1", fmt.Sprintf("股價低於%d日家數", dayParameter))
-	f.SetCellValue(sheet1, "H1", fmt.Sprintf("股價高於%d日家數", dayParameter))
-	f.SetCellValue(sheet1, "I1", "家數")
-	f.SetCellValue(sheet1, "I1", "家數")
-	f.SetCellValue(sheet1, "J1", fmt.Sprintf("股價低於%d日家數比例", dayParameter))
-	f.SetCellValue(sheet1, "K1", fmt.Sprintf("股價高於%d日家數比例", dayParameter))
-
-	f.SetCellValue(sheet2, "A1", "股號")
-
-	f.SetCellValue(sheet3, "A1", "股號")
+// findLowParticipationDates 找出參與度遠低於鄰近交易日的異常日期（Yahoo 資料缺漏）。
+// 跟前後鄰近交易日的中位數比較，避免誤傷「早期上市家數本來就少」的正常歷史。
+func findLowParticipationDates(orderedDates []string, participation map[string]int) []string {
+	const window = 10          // 前後各約 10 個交易日
+	const ratioThreshold = 0.2 // 低於鄰近中位數的 20% 視為異常
+	var anomalies []string
+	n := len(orderedDates)
+	for i, date := range orderedDates {
+		var neighbors []int
+		for j := i - window; j <= i+window; j++ {
+			if j < 0 || j >= n || j == i {
+				continue
+			}
+			neighbors = append(neighbors, participation[orderedDates[j]])
+		}
+		if len(neighbors) == 0 {
+			continue
+		}
+		sort.Ints(neighbors)
+		med := neighbors[len(neighbors)/2]
+		if med > 0 && float64(participation[date]) < float64(med)*ratioThreshold {
+			anomalies = append(anomalies, date)
+		}
+	}
+	return anomalies
 }
 
 func dfs(node *html.Node, stockInfos *[]StockInfo, strMode string) {

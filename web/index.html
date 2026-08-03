@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>台股創X日新高新低比例</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
     :root {
       --surface-1: #fcfcfb;
@@ -64,6 +65,7 @@
       background: var(--series-index); color: #fff; border-color: transparent;
     }
     .spacer { flex: 1 1 auto; }
+    .hint { margin: 0 2px 12px; color: var(--muted); font-size: 0.76rem; }
     .card {
       background: var(--surface-1); border: 1px solid var(--border);
       border-radius: 12px; padding: 14px 14px 8px; margin-bottom: 16px;
@@ -106,8 +108,10 @@
         <button data-days="0">全部</button>
       </div>
       <div class="spacer"></div>
+      <button id="resetZoom">重置縮放</button>
       <button id="toggleTable">表格檢視</button>
     </div>
+    <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大　·　點「重置縮放」還原　·　兩張圖同步</p>
 
     <div id="charts">
       <div class="card">
@@ -163,6 +167,27 @@
     let DAY = 60;        // dayParameter
     let rangeDays = 365; // 目前選取範圍
     let chartHigh = null, chartLow = null;
+    let syncing = false; // 防止兩圖同步縮放時互相觸發成無限迴圈
+
+    // 註冊縮放外掛（CDN script 版全域名稱可能不同，兩種都試）
+    (function registerZoom() {
+      const zp = window.ChartZoom || window['chartjs-plugin-zoom'] || window.chartjsPluginZoom;
+      try { if (zp && Chart.register) Chart.register(zp); } catch (e) { /* 已註冊則略過 */ }
+    })();
+
+    // 一張圖縮放後，把相同的 x 範圍套到另一張，保持兩圖對齊
+    function syncZoom(src) {
+      if (syncing) return;
+      const other = src === chartHigh ? chartLow : chartHigh;
+      if (!other || !other.scales) return;
+      syncing = true;
+      try {
+        const x = src.scales.x;
+        other.zoomScale('x', { min: x.min, max: x.max }, 'none');
+      } finally {
+        syncing = false;
+      }
+    }
 
     // 共用的 Chart.js 預設，讓兩張圖對齊、風格一致
     Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif';
@@ -234,7 +259,7 @@
           labels,
           datasets: [
             { type: 'bar', label: name + '比例',
-              data: data.map(d => d[pctKey]),
+              data: data.map(d => d.valid === false ? null : d[pctKey]),
               backgroundColor: color, borderColor: color,
               borderRadius: 2, borderSkipped: false,
               categoryPercentage: 1.0, barPercentage: 0.9, maxBarThickness: 40,
@@ -269,9 +294,20 @@
                 label: (i) => {
                   const d = data[i.dataIndex];
                   if (i.dataset.type === 'line') return `  大盤 ${Number(d.close).toLocaleString()}`;
+                  if (d.valid === false) return `  ${name}比例 —（當日個股資料異常）`;
                   return `  ${name}比例 ${Number(d[pctKey]).toFixed(1)}%（${d[countKey]} 家）`;
                 },
               } },
+            zoom: {
+              zoom: {
+                wheel: { enabled: true },
+                pinch: { enabled: true },
+                drag: { enabled: true, backgroundColor: 'rgba(74,58,167,0.12)' },
+                mode: 'x',
+                onZoomComplete: ({ chart }) => syncZoom(chart),
+              },
+              limits: { x: { minRange: 5 } },
+            },
           },
         },
         plugins: [alignYAxis],
@@ -280,15 +316,19 @@
 
     function renderTable() {
       const data = sliceRange(rangeDays);
-      const rows = data.slice().reverse().map(d => `<tr>
+      const rows = data.slice().reverse().map(d => {
+        const bad = d.valid === false;
+        const cell = (v) => bad ? '—' : v;
+        return `<tr>
         <td>${d.date}</td>
         <td>${d.close ? Number(d.close).toLocaleString() : ''}</td>
-        <td>${d.highCount}</td>
-        <td>${d.lowCount}</td>
-        <td>${d.total}</td>
-        <td>${Number(d.highPct).toFixed(1)}</td>
-        <td>${Number(d.lowPct).toFixed(1)}</td>
-      </tr>`).join('');
+        <td>${cell(d.highCount)}</td>
+        <td>${cell(d.lowCount)}</td>
+        <td>${cell(d.total)}</td>
+        <td>${cell(Number(d.highPct).toFixed(1))}</td>
+        <td>${cell(Number(d.lowPct).toFixed(1))}</td>
+      </tr>`;
+      }).join('');
       document.getElementById('tableBody').innerHTML = rows;
     }
 
@@ -303,6 +343,11 @@
     document.getElementById('ranges').addEventListener('click', (e) => {
       const btn = e.target.closest('button');
       if (btn) setRange(Number(btn.dataset.days));
+    });
+
+    document.getElementById('resetZoom').addEventListener('click', () => {
+      if (chartLow) chartLow.resetZoom();
+      if (chartHigh) chartHigh.resetZoom();
     });
 
     document.getElementById('toggleTable').addEventListener('click', () => {
