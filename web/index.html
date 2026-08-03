@@ -19,6 +19,7 @@
       /* 系列色（categorical，已通過 CVD 驗證） */
       --series-high: #008300; /* 創新高 = 深綠 */
       --series-low: #e34948;  /* 創新低 = 紅 */
+      --series-drop: #eb6834; /* 單日急跌 = 橘 */
       --series-index: #4a3aa7;/* 大盤 = violet */
     }
     @media (prefers-color-scheme: dark) {
@@ -33,6 +34,7 @@
         --border: rgba(255, 255, 255, 0.10);
         --series-high: #1a9e4b;
         --series-low: #e66767;
+        --series-drop: #d95926;
         --series-index: #9085e9;
       }
     }
@@ -123,6 +125,16 @@
           <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
         </div>
       </div>
+
+      <div class="card">
+        <h2 id="dropTitle">大盤 × 單日跌幅 &gt;5% 比例</h2>
+        <p class="sub">柱：當日跌幅逾 5% 家數占比（%，左軸）　線：大盤加權指數（右軸）　—— 看單日急跌</p>
+        <div class="chart-box"><canvas id="chartDrop"></canvas></div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--series-drop)"></i>單日跌幅&gt;5%比例</span>
+          <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
+        </div>
+      </div>
     </div>
 
     <div id="tableView" class="table-scroll hidden">
@@ -148,7 +160,7 @@
     const CSS = getComputedStyle(document.documentElement);
     const c = (name) => CSS.getPropertyValue(name).trim();
     const COL = {
-      high: c('--series-high'), low: c('--series-low'), index: c('--series-index'),
+      high: c('--series-high'), low: c('--series-low'), drop: c('--series-drop'), index: c('--series-index'),
       grid: c('--grid'), axis: c('--axis'), muted: c('--muted'),
       text: c('--text-primary'), surface: c('--surface-1'), border: c('--border'),
     };
@@ -156,13 +168,28 @@
     let ALL = [];        // 全部資料
     let DAY = 60;        // dayParameter
     let rangeDays = 365; // 目前選取範圍
-    let chartLow = null;
+    let chartLow = null, chartDrop = null;
+    let syncing = false; // 防止兩圖同步縮放時互相觸發成無限迴圈
 
     // 註冊縮放外掛（CDN script 版全域名稱可能不同，兩種都試）
     (function registerZoom() {
       const zp = window.ChartZoom || window['chartjs-plugin-zoom'] || window.chartjsPluginZoom;
       try { if (zp && Chart.register) Chart.register(zp); } catch (e) { /* 已註冊則略過 */ }
     })();
+
+    // 一張圖縮放後，把相同的 x 範圍套到另一張，保持兩圖對齊
+    function syncZoom(src) {
+      if (syncing) return;
+      syncing = true;
+      try {
+        const x = src.scales.x;
+        [chartLow, chartDrop].forEach(ch => {
+          if (ch && ch !== src && ch.scales) ch.zoomScale('x', { min: x.min, max: x.max }, 'none');
+        });
+      } finally {
+        syncing = false;
+      }
+    }
 
     // 共用的 Chart.js 預設
     Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif';
@@ -221,8 +248,10 @@
       const labels = data.map(d => d.date);
 
       if (chartLow) chartLow.destroy();
+      if (chartDrop) chartDrop.destroy();
 
       chartLow = makeCombo('chartLow', data, labels, 'lowPct', 'lowCount', COL.low, '創新低');
+      chartDrop = makeCombo('chartDrop', data, labels, 'dropPct', 'dropCount', COL.drop, '單日跌幅>5%');
     }
 
     // 一張圖疊放：比例柱狀（左軸 %）＋ 大盤指數折線（右軸）
@@ -277,6 +306,7 @@
                 pinch: { enabled: true },
                 drag: { enabled: true, backgroundColor: 'rgba(74,58,167,0.12)' },
                 mode: 'x',
+                onZoomComplete: ({ chart }) => syncZoom(chart),
               },
               limits: { x: { minRange: 5 } },
             },
@@ -319,6 +349,7 @@
 
     document.getElementById('resetZoom').addEventListener('click', () => {
       if (chartLow) chartLow.resetZoom();
+      if (chartDrop) chartDrop.resetZoom();
     });
 
     document.getElementById('toggleTable').addEventListener('click', () => {
@@ -339,7 +370,7 @@
         ALL = (json.days || []).filter(d => d.date);
         DAY = json.dayParameter || 60;
 
-        document.getElementById('title').textContent = `台股創 ${DAY} 日新低比例`;
+        document.getElementById('title').textContent = `台股創 ${DAY} 日新低 × 單日急跌`;
         document.getElementById('lowTitle').textContent = `大盤 × 創 ${DAY} 日新低比例`;
         document.getElementById('meta').textContent =
           `資料筆數 ${ALL.length}　·　更新於 ${json.generated || '—'}`;
