@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台股創X日新高新低比例</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --surface-1: #fcfcfb;
+      --page: #f9f9f7;
+      --text-primary: #0b0b0b;
+      --text-secondary: #52514e;
+      --muted: #898781;
+      --grid: #e1e0d9;
+      --axis: #c3c2b7;
+      --border: rgba(11, 11, 11, 0.10);
+      /* 系列色（categorical，已通過 CVD 驗證） */
+      --series-high: #2a78d6; /* 創新高 = 藍 */
+      --series-low: #e34948;  /* 創新低 = 紅 */
+      --series-index: #4a3aa7;/* 大盤 = violet */
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --surface-1: #1a1a19;
+        --page: #0d0d0d;
+        --text-primary: #ffffff;
+        --text-secondary: #c3c2b7;
+        --muted: #898781;
+        --grid: #2c2c2a;
+        --axis: #383835;
+        --border: rgba(255, 255, 255, 0.10);
+        --series-high: #3987e5;
+        --series-low: #e66767;
+        --series-index: #9085e9;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--page);
+      color: var(--text-primary);
+      font-family: system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
+    header { margin-bottom: 8px; }
+    h1 { font-size: 1.4rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+    .meta { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin: 20px 0 12px;
+    }
+    .ranges { display: flex; flex-wrap: wrap; gap: 4px; }
+    button {
+      font: inherit; font-size: 0.85rem; cursor: pointer;
+      background: var(--surface-1); color: var(--text-secondary);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 5px 12px; transition: background .12s, color .12s;
+    }
+    button:hover { color: var(--text-primary); }
+    button.active {
+      background: var(--series-index); color: #fff; border-color: transparent;
+    }
+    .spacer { flex: 1 1 auto; }
+    .card {
+      background: var(--surface-1); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 14px 8px; margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 0.95rem; margin: 0 0 2px; font-weight: 600;
+    }
+    .card .sub { color: var(--muted); font-size: 0.78rem; margin: 0 0 8px; }
+    .chart-box { position: relative; height: 260px; }
+    .legend { display: flex; gap: 16px; margin: 6px 2px 0; font-size: 0.82rem; color: var(--text-secondary); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+    th, td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--surface-1); }
+    .table-scroll { max-height: 480px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+    .hidden { display: none; }
+    .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+    footer { margin-top: 24px; color: var(--muted); font-size: 0.78rem; }
+    a { color: var(--series-high); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1 id="title">台股創 X 日新高新低比例</h1>
+      <p class="meta" id="meta">載入中…</p>
+    </header>
+
+    <div class="controls">
+      <div class="ranges" id="ranges">
+        <button data-days="30">近 1 月</button>
+        <button data-days="90">近 3 月</button>
+        <button data-days="180">近 6 月</button>
+        <button data-days="365" class="active">近 1 年</button>
+        <button data-days="0">全部</button>
+      </div>
+      <div class="spacer"></div>
+      <button id="toggleTable">表格檢視</button>
+    </div>
+
+    <div id="charts">
+      <div class="card">
+        <h2>大盤加權指數（收盤）</h2>
+        <p class="sub">TAIEX 收盤價</p>
+        <div class="chart-box"><canvas id="chartIndex"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2 id="breadthTitle">創 X 日新高／新低比例</h2>
+        <p class="sub">占當日有交易家數的百分比（%）</p>
+        <div class="chart-box"><canvas id="chartBreadth"></canvas></div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--series-high)"></i>創新高比例</span>
+          <span><i class="swatch" style="background:var(--series-low)"></i>創新低比例</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="tableView" class="table-scroll hidden">
+      <table>
+        <thead>
+          <tr>
+            <th>日期</th><th>大盤收盤</th><th>創新高家數</th><th>創新低家數</th>
+            <th>家數</th><th>創新高%</th><th>創新低%</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <div id="empty" class="empty hidden">
+      尚無資料。請先執行 <code>main.exe -auto</code> 或等待 GitHub Actions 產生 <code>web/data.json</code>。
+    </div>
+
+    <footer id="footer"></footer>
+  </div>
+
+  <script>
+    const CSS = getComputedStyle(document.documentElement);
+    const c = (name) => CSS.getPropertyValue(name).trim();
+    const COL = {
+      high: c('--series-high'), low: c('--series-low'), index: c('--series-index'),
+      grid: c('--grid'), axis: c('--axis'), muted: c('--muted'),
+      text: c('--text-primary'), surface: c('--surface-1'), border: c('--border'),
+    };
+
+    let ALL = [];        // 全部資料
+    let DAY = 60;        // dayParameter
+    let rangeDays = 365; // 目前選取範圍
+    let chartIndex = null, chartBreadth = null;
+
+    // 共用的 Chart.js 預設，讓兩張圖對齊、風格一致
+    Chart.defaults.font.family = 'system-ui, -apple-system, "Segoe UI", "Microsoft JhengHei", sans-serif';
+    Chart.defaults.color = COL.muted;
+
+    function fmtDate(s) { return s; } // 已是 YYYY/MM/DD
+
+    function sliceRange(days) {
+      if (!days || days <= 0) return ALL;
+      // 以最後一天為基準往回推 N 天（日曆日）
+      const last = ALL[ALL.length - 1];
+      if (!last) return ALL;
+      const lastT = new Date(last.date.replace(/\//g, '-')).getTime();
+      const cutoff = lastT - days * 86400000;
+      return ALL.filter(d => new Date(d.date.replace(/\//g, '-')).getTime() >= cutoff);
+    }
+
+    const alignYAxis = { id: 'alignY', afterFit(scale) { if (scale.axis === 'y') scale.width = 56; } };
+
+    function baseScales(data) {
+      return {
+        x: {
+          type: 'category',
+          labels: data.map(d => d.date),
+          grid: { display: false },
+          border: { color: COL.axis },
+          ticks: {
+            color: COL.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 8,
+            font: { size: 11 },
+          },
+        },
+        y: {
+          grid: { color: COL.grid, drawTicks: false },
+          border: { display: false },
+          ticks: { color: COL.muted, font: { size: 11 }, padding: 6 },
+        },
+      };
+    }
+
+    const baseOptions = {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      elements: { line: { borderWidth: 2, tension: 0 }, point: { radius: 0, hoverRadius: 4, hitRadius: 12 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: COL.surface, titleColor: COL.text, bodyColor: COL.text,
+          borderColor: COL.border, borderWidth: 1, padding: 10,
+          titleFont: { weight: '600' }, cornerRadius: 8,
+        },
+      },
+    };
+
+    function render() {
+      const data = sliceRange(rangeDays);
+      const labels = data.map(d => d.date);
+
+      if (chartIndex) chartIndex.destroy();
+      if (chartBreadth) chartBreadth.destroy();
+
+      chartIndex = new Chart(document.getElementById('chartIndex'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: '大盤收盤', data: data.map(d => d.close),
+            borderColor: COL.index, backgroundColor: COL.index,
+            spanGaps: true,
+          }],
+        },
+        options: {
+          ...baseOptions,
+          scales: baseScales(data),
+          plugins: {
+            ...baseOptions.plugins,
+            tooltip: { ...baseOptions.plugins.tooltip,
+              callbacks: { label: (i) => `  收盤 ${Number(i.parsed.y).toLocaleString()}` } },
+          },
+        },
+        plugins: [alignYAxis],
+      });
+
+      chartBreadth = new Chart(document.getElementById('chartBreadth'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label: '創新高比例', data: data.map(d => d.highPct),
+              borderColor: COL.high, backgroundColor: COL.high, spanGaps: true },
+            { label: '創新低比例', data: data.map(d => d.lowPct),
+              borderColor: COL.low, backgroundColor: COL.low, spanGaps: true },
+          ],
+        },
+        options: {
+          ...baseOptions,
+          scales: {
+            ...baseScales(data),
+            y: { ...baseScales(data).y, ticks: { ...baseScales(data).y.ticks,
+              callback: (v) => v + '%' } },
+          },
+          plugins: {
+            ...baseOptions.plugins,
+            tooltip: { ...baseOptions.plugins.tooltip,
+              callbacks: { label: (i) => `  ${i.dataset.label} ${Number(i.parsed.y).toFixed(1)}%` } },
+          },
+        },
+        plugins: [alignYAxis],
+      });
+    }
+
+    function renderTable() {
+      const data = sliceRange(rangeDays);
+      const rows = data.slice().reverse().map(d => `<tr>
+        <td>${d.date}</td>
+        <td>${d.close ? Number(d.close).toLocaleString() : ''}</td>
+        <td>${d.highCount}</td>
+        <td>${d.lowCount}</td>
+        <td>${d.total}</td>
+        <td>${Number(d.highPct).toFixed(1)}</td>
+        <td>${Number(d.lowPct).toFixed(1)}</td>
+      </tr>`).join('');
+      document.getElementById('tableBody').innerHTML = rows;
+    }
+
+    function setRange(days) {
+      rangeDays = days;
+      document.querySelectorAll('#ranges button').forEach(b =>
+        b.classList.toggle('active', Number(b.dataset.days) === days));
+      render();
+      if (!document.getElementById('tableView').classList.contains('hidden')) renderTable();
+    }
+
+    document.getElementById('ranges').addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (btn) setRange(Number(btn.dataset.days));
+    });
+
+    document.getElementById('toggleTable').addEventListener('click', () => {
+      const tv = document.getElementById('tableView');
+      const charts = document.getElementById('charts');
+      const showTable = tv.classList.contains('hidden');
+      tv.classList.toggle('hidden', !showTable);
+      charts.classList.toggle('hidden', showTable);
+      document.getElementById('toggleTable').textContent = showTable ? '圖表檢視' : '表格檢視';
+      if (showTable) renderTable();
+    });
+
+    async function boot() {
+      try {
+        const res = await fetch('./data.json?t=' + Date.now());
+        if (!res.ok) throw new Error('data.json 讀取失敗');
+        const json = await res.json();
+        ALL = (json.days || []).filter(d => d.date);
+        DAY = json.dayParameter || 60;
+
+        document.getElementById('title').textContent = `台股創 ${DAY} 日新高新低比例`;
+        document.getElementById('breadthTitle').textContent = `創 ${DAY} 日新高／新低比例`;
+        document.getElementById('meta').textContent =
+          `資料筆數 ${ALL.length}　·　更新於 ${json.generated || '—'}`;
+        document.getElementById('footer').innerHTML =
+          `資料來源：Yahoo Finance／臺灣證券交易所　·　「家數」為當日有交易且上市滿 ${DAY} 日的個股數（比例分母）。`;
+
+        if (!ALL.length) {
+          document.getElementById('charts').classList.add('hidden');
+          document.getElementById('empty').classList.remove('hidden');
+          return;
+        }
+        setRange(rangeDays);
+      } catch (err) {
+        document.getElementById('meta').textContent = '';
+        document.getElementById('charts').classList.add('hidden');
+        document.getElementById('empty').classList.remove('hidden');
+        document.getElementById('empty').textContent = String(err.message || err);
+      }
+    }
+
+    boot();
+  </script>
+</body>
+</html>

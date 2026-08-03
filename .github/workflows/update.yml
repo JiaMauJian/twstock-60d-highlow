@@ -1,0 +1,57 @@
+name: 更新股價新高新低資料並部署
+
+on:
+  schedule:
+    # UTC 09:30 = 台灣時間 17:30（收盤後）。GitHub cron 用 UTC。
+    - cron: "30 9 * * 1-5"
+  workflow_dispatch: # 允許在 Actions 頁面手動觸發
+
+# 讓 workflow 能寫回 repo（快取 data/）並部署 Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      # 還原上一次跑完的 data/ 個股快取，避免每天重抓上千檔
+      - name: Restore data cache
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: stock-data-${{ github.run_id }}
+          restore-keys: |
+            stock-data-
+
+      - name: Run crawler (auto mode)
+        run: go run . -auto
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

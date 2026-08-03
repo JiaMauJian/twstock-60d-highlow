@@ -1,0 +1,10 @@
+﻿大盤資料來源
+https://query1.finance.yahoo.com/v8/finance/chart/^twii?range=10y&interval=1d
+上市股價
+https://query1.finance.yahoo.com/v8/finance/chart/1101.TW?range=10y&interval=1d&lang=zh
+上櫃股價
+https://query1.finance.yahoo.com/v8/finance/chart/3078.TWO?range=10y&interval=1d&lang=zh
+上市名單
+https://isin.twse.com.tw/isin/class_main.jsp?Page=1&chklike=Y&market=1&issuetype=1
+上櫃名單
+https://isin.twse.com.tw/isin/class_main.jsp?Page=1&chklike=Y&market=2&issuetype=4

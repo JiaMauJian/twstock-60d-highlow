@@ -1,0 +1,13 @@
+# 編譯產物
+main.exe
+main
+
+# Excel 輸出檔與暫存鎖檔（程式會自動產生，不需進 repo）
+*.xlsx
+~$*.xlsx
+
+# 個股原始資料快取（CI 用 actions/cache 保存，不進 repo）
+data/
+
+# Claude Code 本機個人設定（含機器專屬路徑，不進 repo）
+.claude/settings.local.json
