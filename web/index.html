@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>台股創X日新低比例</title>
+  <title>台股創60日新低比例</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
   <style>
@@ -17,11 +18,16 @@
       --axis: #c3c2b7;
       --border: rgba(11, 11, 11, 0.10);
       /* 系列色（categorical，已通過 CVD 驗證） */
-      --series-high: #008300; /* 創新高 = 深綠 */
-      --series-low: #e34948;  /* 創新低 = 紅 */
-      --series-drop: #eb6834; /* 單日急跌 = 橘 */
-      --series-index: #4a3aa7;/* 大盤 = violet */
+      --series-high: #008300;
+      /* 創新高 = 深綠 */
+      --series-low: #e34948;
+      /* 創新低 = 紅 */
+      --series-drop: #eb6834;
+      /* 單日急跌 = 橘 */
+      --series-index: #4a3aa7;
+      /* 大盤 = violet */
     }
+
     @media (prefers-color-scheme: dark) {
       :root {
         --surface-1: #1a1a19;
@@ -38,8 +44,17 @@
         --series-index: #9085e9;
       }
     }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background: var(--page);
       color: var(--text-primary);
@@ -47,50 +62,186 @@
       line-height: 1.5;
       -webkit-font-smoothing: antialiased;
     }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 64px; }
-    header { margin-bottom: 8px; }
-    h1 { font-size: 1.4rem; margin: 0 0 4px; letter-spacing: -0.01em; }
-    .meta { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 24px 20px 64px;
+    }
+
+    header {
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .meta {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
     .controls {
-      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
       margin: 20px 0 12px;
     }
-    .ranges { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    .ranges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
     button {
-      font: inherit; font-size: 0.85rem; cursor: pointer;
-      background: var(--surface-1); color: var(--text-secondary);
-      border: 1px solid var(--border); border-radius: 8px;
-      padding: 5px 12px; transition: background .12s, color .12s;
+      font: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      background: var(--surface-1);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 12px;
+      transition: background .12s, color .12s;
     }
-    button:hover { color: var(--text-primary); }
+
+    button:hover {
+      color: var(--text-primary);
+    }
+
     button.active {
-      background: var(--series-index); color: #fff; border-color: transparent;
+      background: var(--series-index);
+      color: #fff;
+      border-color: transparent;
     }
-    .spacer { flex: 1 1 auto; }
-    .hint { margin: 0 2px 12px; color: var(--muted); font-size: 0.76rem; }
+
+    .spacer {
+      flex: 1 1 auto;
+    }
+
+    .hint {
+      margin: 0 2px 12px;
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
     .card {
-      background: var(--surface-1); border: 1px solid var(--border);
-      border-radius: 12px; padding: 14px 14px 8px; margin-bottom: 16px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 14px 8px;
+      margin-bottom: 16px;
     }
+
     .card h2 {
-      font-size: 0.95rem; margin: 0 0 2px; font-weight: 600;
+      font-size: 0.95rem;
+      margin: 0 0 2px;
+      font-weight: 600;
     }
-    .card .sub { color: var(--muted); font-size: 0.78rem; margin: 0 0 8px; }
-    .chart-box { position: relative; height: 260px; }
-    .legend { display: flex; gap: 16px; margin: 6px 2px 0; font-size: 0.82rem; color: var(--text-secondary); }
-    .legend span { display: inline-flex; align-items: center; gap: 6px; }
-    .swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
-    table { border-collapse: collapse; width: 100%; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-    th, td { padding: 4px 10px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
-    th:first-child, td:first-child { text-align: left; }
-    thead th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--surface-1); }
-    .table-scroll { max-height: 480px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
-    .hidden { display: none; }
-    .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
-    footer { margin-top: 24px; color: var(--muted); font-size: 0.78rem; }
-    a { color: var(--series-high); }
+
+    .card .sub {
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin: 0 0 8px;
+    }
+
+    .chart-box {
+      position: relative;
+      height: 260px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 16px;
+      margin: 6px 2px 0;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 3px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.8rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    th,
+    td {
+      padding: 4px 10px;
+      text-align: right;
+      border-bottom: 1px solid var(--grid);
+      white-space: nowrap;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    thead th {
+      color: var(--muted);
+      font-weight: 600;
+      position: sticky;
+      top: 0;
+      background: var(--surface-1);
+    }
+
+    .table-scroll {
+      max-height: 480px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    caption {
+      text-align: left;
+      padding: 10px 10px 8px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .empty {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    a {
+      color: var(--series-high);
+    }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <header>
@@ -109,7 +260,7 @@
       <div class="spacer"></div>
       <button id="toggleDrop">顯示接近跌停圖</button>
       <button id="resetZoom">重置縮放</button>
-      <button id="toggleTable">表格檢視</button>
+      <button id="toggleTable">新低 Top10</button>
     </div>
     <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大　·　點「重置縮放」還原　·　兩張圖同步</p>
 
@@ -137,10 +288,14 @@
 
     <div id="tableView" class="table-scroll hidden">
       <table>
+        <caption>歷史新低比例最高 10 天（全期間，不受上方時間範圍影響）</caption>
         <thead>
           <tr>
-            <th>日期</th><th>大盤收盤</th><th>創新高家數</th><th>創新低家數</th>
-            <th>家數</th><th>創新高%</th><th>創新低%</th>
+            <th>排名</th>
+            <th>日期</th>
+            <th>大盤收盤</th>
+            <th>新低比例</th>
+            <th>新低家數</th>
           </tr>
         </thead>
         <tbody id="tableBody"></tbody>
@@ -258,17 +413,21 @@
         data: {
           labels,
           datasets: [
-            { type: 'bar', label: name + '比例',
+            {
+              type: 'bar', label: name + '比例',
               data: data.map(d => d.valid === false ? null : d[pctKey]),
               backgroundColor: color, borderColor: color,
               borderRadius: 2, borderSkipped: false,
               categoryPercentage: 1.0, barPercentage: 0.9, maxBarThickness: 40,
-              yAxisID: 'yPct', order: 2 },
-            { type: 'line', label: '大盤指數',
+              yAxisID: 'yPct', order: 2
+            },
+            {
+              type: 'line', label: '大盤指數',
               data: data.map(d => d.close),
               borderColor: COL.index, backgroundColor: COL.index,
               borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, spanGaps: true,
-              yAxisID: 'yIndex', order: 1 },
+              yAxisID: 'yIndex', order: 1
+            },
           ],
         },
         options: {
@@ -283,13 +442,16 @@
             yIndex: {
               position: 'right',
               grid: { display: false }, border: { display: false },
-              ticks: { color: COL.muted, font: { size: 11 }, padding: 6,
-                callback: (v) => Number(v).toLocaleString() },
+              ticks: {
+                color: COL.muted, font: { size: 11 }, padding: 6,
+                callback: (v) => Number(v).toLocaleString()
+              },
             },
           },
           plugins: {
             ...baseOptions.plugins,
-            tooltip: { ...baseOptions.plugins.tooltip,
+            tooltip: {
+              ...baseOptions.plugins.tooltip,
               callbacks: {
                 label: (i) => {
                   const d = data[i.dataIndex];
@@ -297,7 +459,8 @@
                   if (d.valid === false) return `  ${name}比例 —（當日個股資料異常）`;
                   return `  ${name}比例 ${Number(d[pctKey]).toFixed(1)}%（${d[countKey]} 家）`;
                 },
-              } },
+              }
+            },
             zoom: {
               zoom: {
                 wheel: { enabled: true },
@@ -315,20 +478,18 @@
     }
 
     function renderTable() {
-      const data = sliceRange(rangeDays);
-      const rows = data.slice().reverse().map(d => {
-        const bad = d.valid === false;
-        const cell = (v) => bad ? '—' : v;
-        return `<tr>
+      // 全歷史（不受時間範圍影響）新低比例最高的 10 天
+      const top = ALL.filter(d => d.valid !== false)
+        .slice()
+        .sort((a, b) => b.lowPct - a.lowPct)
+        .slice(0, 10);
+      const rows = top.map((d, i) => `<tr>
+        <td>${i + 1}</td>
         <td>${d.date}</td>
         <td>${d.close ? Number(d.close).toLocaleString() : ''}</td>
-        <td>${cell(d.highCount)}</td>
-        <td>${cell(d.lowCount)}</td>
-        <td>${cell(d.total)}</td>
-        <td>${cell(Number(d.highPct).toFixed(1))}</td>
-        <td>${cell(Number(d.lowPct).toFixed(1))}</td>
-      </tr>`;
-      }).join('');
+        <td>${Number(d.lowPct).toFixed(1)}%</td>
+        <td>${d.lowCount}</td>
+      </tr>`).join('');
       document.getElementById('tableBody').innerHTML = rows;
     }
 
@@ -365,7 +526,7 @@
       const showTable = tv.classList.contains('hidden');
       tv.classList.toggle('hidden', !showTable);
       charts.classList.toggle('hidden', showTable);
-      document.getElementById('toggleTable').textContent = showTable ? '圖表檢視' : '表格檢視';
+      document.getElementById('toggleTable').textContent = showTable ? '回到圖表' : '新低 Top10';
       if (showTable) renderTable();
     });
 
@@ -401,4 +562,5 @@
     boot();
   </script>
 </body>
+
 </html>
