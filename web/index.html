@@ -852,10 +852,10 @@
         ALL = (json.days || []).filter(d => d.date);
         DAY = json.dayParameter || 60;
 
-        document.getElementById('title').textContent = `台股創 ${DAY} 日新低 × 單日急跌`;
+        document.getElementById('title').textContent = `台股創 ${DAY} 日新低比例`;
         document.getElementById('lowTitle').textContent = `大盤 × 創 ${DAY} 日新低比例`;
-        document.getElementById('meta').textContent =
-          `資料筆數 ${ALL.length}　·　資料日期 ${json.generated || '—'}`;
+        document.getElementById('meta').textContent = '';
+        document.getElementById('meta').style.display = 'none';
         document.getElementById('footer').innerHTML =
           `<div class="footer-block">資料來源：Yahoo Finance／臺灣證券交易所　·　「家數」為當日有交易且上市滿 ${DAY} 日的個股數（比例分母）。</div>` +
           `<div class="footer-block">` +

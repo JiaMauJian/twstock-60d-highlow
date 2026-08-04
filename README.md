@@ -29,6 +29,13 @@ go run . -auto -clear   # 先清空 data/ 再全部重抓
 [前端] web/index.html 讀 data.json，用 Chart.js 畫圖
 ```
 
+目前拆成兩條 workflow：
+
+- **`.github/workflows/update.yml`**：重抓最新資料並部署（給 cron-job.org / 手動更新用）
+- **`.github/workflows/deploy-web.yml`**：只部署前端畫面（`web/` 內容），不重跑爬蟲；推送 `web/index.html` 等前端檔案到 `main` 時會自動觸發
+
+> `deploy-web.yml` 會先嘗試抓取目前 GitHub Pages 線上的 `data.json`，避免單純改版面時把網站資料回退成 repo 內較舊的版本。
+
 > 不用 GitHub 內建的 `schedule` cron，因為它在尖峰時段常延遲甚至漏跑；改用外部排程主動觸發較可靠。
 
 ### 首次上線步驟
@@ -46,8 +53,10 @@ go run . -auto -clear   # 先清空 data/ 再全部重抓
 2. **開啟 GitHub Pages**：進入 repo 的 **Settings → Pages**，
    將 **Source** 設為 **GitHub Actions**。
 
-3. **手動觸發一次**：進入 **Actions** 分頁 → 選「更新股價新高新低資料並部署」→ **Run workflow**。
+3. **手動觸發一次資料更新**：進入 **Actions** 分頁 → 選「更新股價新高新低資料並部署」→ **Run workflow**。
    跑完後，Pages 網址（`https://<帳號>.github.io/<repo名稱>/`）即可看到圖表。
+
+4. **之後前端改版直接 push 即可**：若只修改 `web/index.html`、CSS、前端文字等，push 到 `main` 會由「部署網頁前端（不重跑資料）」自動部署，不必重新跑整個爬蟲。
 
 ### 設定 cron-job.org 自動排程
 
@@ -77,9 +86,10 @@ go run . -auto -clear   # 先清空 data/ 再全部重抓
 ### 注意事項
 
 - **輸出**：程式只輸出 `web/data.json`（給網頁讀）。已移除舊版的 Excel 輸出。
-- **每次重抓**：CI 用 `-auto -clear` 每次清空 `data/` 重抓，確保拿到完整且最新的資料
+- **每次重抓**：`update.yml` 用 `-auto -clear` 每次清空 `data/` 重抓，確保拿到完整且最新的資料
   （因 `DownloadData` 對既有檔案會跳過，不清空就永遠不會更新）。每次約下載 2000 檔、
   每檔間隔 300ms，約 **10~12 分鐘**；抓 20 年資料，故量較大。
+- **前端快速部署**：`deploy-web.yml` 只部署前端，不重跑爬蟲，適合手機版排版、文案、樣式等修改。
 - **資料來源**：個股與大盤來自 Yahoo Finance（range=20y），上市櫃清單來自臺灣證券交易所（isin.twse.com.tw）。
 
 ## 計算邏輯重點
