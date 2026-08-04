@@ -313,6 +313,14 @@ func main() {
 	writeWebJSON(webDays)
 }
 
+func taipeiNow() time.Time {
+	loc, err := time.LoadLocation("Asia/Taipei")
+	if err != nil {
+		return time.Now().In(time.FixedZone("UTC+8", 8*60*60))
+	}
+	return time.Now().In(loc)
+}
+
 // writeWebJSON 把每日統計輸出成 web/data.json，供 GitHub Pages 前端讀取
 func writeWebJSON(days []MarketDay) {
 	if err := os.MkdirAll("web", 0755); err != nil {
@@ -321,7 +329,7 @@ func writeWebJSON(days []MarketDay) {
 	}
 	out := WebOutput{
 		DayParameter: dayParameter,
-		Generated:    time.Now().Format("2006/01/02 15:04:05"),
+		Generated:    taipeiNow().Format("2006/01/02"),
 		Days:         days,
 	}
 	b, err := json.MarshalIndent(out, "", "  ")

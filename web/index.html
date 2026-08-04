@@ -85,6 +85,42 @@
       margin: 0;
     }
 
+    .summary-strip {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 18px 0 12px;
+    }
+
+    .summary-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+
+    .summary-label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .summary-value {
+      display: block;
+      font-size: 1.9rem;
+      line-height: 1.1;
+      font-weight: 700;
+      color: var(--series-low);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .summary-meta {
+      margin-top: 6px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -170,6 +206,78 @@
       gap: 6px;
     }
 
+    .top10-cards {
+      display: none;
+    }
+
+    .top10-caption {
+      text-align: left;
+      padding: 10px 10px 8px;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .top10-list {
+      display: grid;
+      gap: 10px;
+      padding: 10px;
+    }
+
+    .top10-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--surface-1);
+    }
+
+    .top10-card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .top10-rank {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--series-index);
+      letter-spacing: 0.02em;
+    }
+
+    .top10-date {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .top10-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 12px;
+    }
+
+    .top10-item {
+      min-width: 0;
+    }
+
+    .top10-label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .top10-value {
+      display: block;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      word-break: break-word;
+    }
+
     .swatch {
       width: 14px;
       height: 3px;
@@ -236,8 +344,164 @@
       font-size: 0.78rem;
     }
 
+    .footer-block + .footer-block {
+      margin-top: 8px;
+    }
+
+    .footer-heading {
+      display: inline-block;
+      margin-right: 8px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      margin-top: 4px;
+    }
+
+    .footer-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 3px 0;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+    }
+
     a {
       color: var(--series-high);
+    }
+
+    @media (max-width: 768px) {
+      .wrap {
+        padding: 16px 12px 40px;
+      }
+
+      h1 {
+        font-size: 1.15rem;
+        line-height: 1.35;
+      }
+
+      .meta,
+      .card .sub,
+      .hint,
+      footer {
+        font-size: 0.75rem;
+      }
+
+      footer {
+        line-height: 1.65;
+      }
+
+      .summary-strip {
+        margin-top: 14px;
+        margin-bottom: 10px;
+      }
+
+      .summary-card {
+        padding: 12px 14px;
+        border-radius: 10px;
+      }
+
+      .summary-label,
+      .summary-meta {
+        font-size: 0.75rem;
+      }
+
+      .summary-value {
+        font-size: 1.6rem;
+      }
+
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      .ranges {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+      }
+
+      .ranges button {
+        flex: 0 0 auto;
+      }
+
+      .spacer {
+        display: none;
+      }
+
+      button {
+        min-height: 42px;
+        padding: 8px 12px;
+      }
+
+      .hint {
+        line-height: 1.45;
+      }
+
+      .card {
+        padding: 12px 10px 8px;
+        border-radius: 10px;
+      }
+
+      .chart-box {
+        height: 260px;
+      }
+
+      .legend {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        font-size: 0.76rem;
+      }
+
+      .table-scroll {
+        max-height: none;
+        overflow: visible;
+        border: none;
+        border-radius: 0;
+      }
+
+      .desktop-top10 {
+        display: none;
+      }
+
+      .top10-cards {
+        display: block;
+      }
+
+      .top10-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      caption,
+      .top10-caption {
+        padding: 0 10px 8px;
+      }
+
+      .footer-heading {
+        display: block;
+        margin-right: 0;
+        margin-bottom: 4px;
+      }
+
+      .footer-links {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 4px;
+        margin-top: 0;
+      }
+
+      .footer-links a {
+        min-height: 0;
+        padding: 0;
+      }
     }
   </style>
 </head>
@@ -248,6 +512,14 @@
       <h1 id="title">台股創 X 日新低比例</h1>
       <p class="meta" id="meta">載入中…</p>
     </header>
+
+    <div class="summary-strip">
+      <div class="summary-card">
+        <span class="summary-label">新低比例</span>
+        <span class="summary-value" id="latestLowPct">--</span>
+        <div class="summary-meta" id="latestLowMeta">載入中…</div>
+      </div>
+    </div>
 
     <div class="controls">
       <div class="ranges" id="ranges">
@@ -286,7 +558,7 @@
     </div>
 
     <div id="tableView" class="table-scroll hidden">
-      <table>
+      <table class="desktop-top10">
         <caption>歷史新低比例最高 10 天（全期間，不受上方時間範圍影響）</caption>
         <thead>
           <tr>
@@ -299,6 +571,10 @@
         </thead>
         <tbody id="tableBody"></tbody>
       </table>
+      <div class="top10-cards">
+        <div class="top10-caption">歷史新低比例最高 10 天（全期間，不受上方時間範圍影響）</div>
+        <div id="top10Cards" class="top10-list"></div>
+      </div>
     </div>
 
     <div id="empty" class="empty hidden">
@@ -489,7 +765,48 @@
         <td>${Number(d.lowPct).toFixed(1)}%</td>
         <td>${d.lowCount}</td>
       </tr>`).join('');
+      const cards = top.map((d, i) => `<article class="top10-card">
+        <div class="top10-card-head">
+          <span class="top10-rank">#${i + 1}</span>
+          <span class="top10-date">${d.date}</span>
+        </div>
+        <div class="top10-grid">
+          <div class="top10-item">
+            <span class="top10-label">大盤收盤</span>
+            <span class="top10-value">${d.close ? Number(d.close).toLocaleString() : '—'}</span>
+          </div>
+          <div class="top10-item">
+            <span class="top10-label">新低比例</span>
+            <span class="top10-value">${Number(d.lowPct).toFixed(1)}%</span>
+          </div>
+          <div class="top10-item">
+            <span class="top10-label">新低家數</span>
+            <span class="top10-value">${d.lowCount}</span>
+          </div>
+        </div>
+      </article>`).join('');
       document.getElementById('tableBody').innerHTML = rows;
+      document.getElementById('top10Cards').innerHTML = cards;
+    }
+
+    function updateZoomHint() {
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      document.getElementById('zoomHint').textContent = isMobile
+        ? '縮放：雙指縮放　·　點上方時間區間可還原'
+        : '縮放：滑鼠滾輪 / 拖曳框選放大　·　點上方時間範圍即可還原　·　兩張圖同步';
+    }
+
+    function renderSummary() {
+      const latest = [...ALL].reverse().find(d => d.valid !== false) || ALL[ALL.length - 1];
+      const valueEl = document.getElementById('latestLowPct');
+      const metaEl = document.getElementById('latestLowMeta');
+      if (!latest) {
+        valueEl.textContent = '--';
+        metaEl.textContent = '尚無資料';
+        return;
+      }
+      valueEl.textContent = latest.valid === false ? '—' : `${Number(latest.lowPct).toFixed(1)}%`;
+      metaEl.textContent = `${latest.date}`;
     }
 
     function setRange(days) {
@@ -524,8 +841,11 @@
       if (showTable) renderTable();
     });
 
+    window.addEventListener('resize', updateZoomHint);
+
     async function boot() {
       try {
+        updateZoomHint();
         const res = await fetch('./data.json?t=' + Date.now());
         if (!res.ok) throw new Error('data.json 讀取失敗');
         const json = await res.json();
@@ -535,14 +855,20 @@
         document.getElementById('title').textContent = `台股創 ${DAY} 日新低 × 單日急跌`;
         document.getElementById('lowTitle').textContent = `大盤 × 創 ${DAY} 日新低比例`;
         document.getElementById('meta').textContent =
-          `資料筆數 ${ALL.length}　·　更新於 ${json.generated || '—'}`;
+          `資料筆數 ${ALL.length}　·　資料日期 ${json.generated || '—'}`;
         document.getElementById('footer').innerHTML =
-          `資料來源：Yahoo Finance／臺灣證券交易所　·　「家數」為當日有交易且上市滿 ${DAY} 日的個股數（比例分母）。<br>` +
-          `延伸參考：` +
-          `<a href="https://ai.finlab.tw/tw_market/" target="_blank" rel="noopener">大盤融資維持率（FinLab）↗</a>　·　` +
-          `<a href="https://goodinfo.tw/tw/ShowK_Chart.asp?STOCK_ID=%E5%8A%A0%E6%AC%8A%E6%8C%87%E6%95%B8&CHT_CAT=MONTH&PRICE_ADJ=F&SCROLL2Y=500" target="_blank" rel="noopener">上市月MACD（Goodinfo）↗</a>　·　` +
-          `<a href="https://goodinfo.tw/tw/ShowK_Chart.asp?STOCK_ID=%E6%AB%83%E8%B2%B7%E6%8C%87%E6%95%B8&CHT_CAT=MONTH&PRICE_ADJ=F&SCROLL2Y=700" target="_blank" rel="noopener">上櫃月MACD（Goodinfo）↗</a>` +
-          `<br>MACD 算法（Goodinfo）：計算價用 (H+L+2C)/4，柱狀為 2×(DIF−DEA)`;
+          `<div class="footer-block">資料來源：Yahoo Finance／臺灣證券交易所　·　「家數」為當日有交易且上市滿 ${DAY} 日的個股數（比例分母）。</div>` +
+          `<div class="footer-block">` +
+          `<span class="footer-heading">延伸參考</span>` +
+          `<div class="footer-links">` +
+          `<a href="https://ai.finlab.tw/tw_market/" target="_blank" rel="noopener">大盤融資維持率（FinLab）↗</a>` +
+          `<a href="https://goodinfo.tw/tw/ShowK_Chart.asp?STOCK_ID=%E5%8A%A0%E6%AC%8A%E6%8C%87%E6%95%B8&CHT_CAT=MONTH&PRICE_ADJ=F&SCROLL2Y=500" target="_blank" rel="noopener">上市月 MACD（Goodinfo）↗</a>` +
+          `<a href="https://goodinfo.tw/tw/ShowK_Chart.asp?STOCK_ID=%E6%AB%83%E8%B2%B7%E6%8C%87%E6%95%B8&CHT_CAT=MONTH&PRICE_ADJ=F&SCROLL2Y=700" target="_blank" rel="noopener">上櫃月 MACD（Goodinfo）↗</a>` +
+          `</div>` +
+          `</div>` +
+          `<div class="footer-block">MACD 算法（Goodinfo）：計算價用 (H+L+2C)/4，柱狀為 2×(DIF−DEA)</div>`;
+
+        renderSummary();
 
         if (!ALL.length) {
           document.getElementById('charts').classList.add('hidden');
