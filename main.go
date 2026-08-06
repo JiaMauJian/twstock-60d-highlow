@@ -107,7 +107,9 @@ type WebOutput struct {
 	Days         []MarketDay `json:"days"`
 }
 
-var dataRange string = "20y" // 1y 5y 10y 20y
+// dayParameter=60 需要往前 60 個交易日才能算出結果，1y(約 250 個交易日)扣掉暖身期後
+// 還有約 190 天的有效重算窗口，搭配 mergeWebDays 的合併機制，足夠銜接上一次執行累積的歷史資料。
+var dataRange string = "1y" // 1y 5y 10y 20y
 
 var dayParameter int = 60
 
@@ -309,8 +311,67 @@ func main() {
 		})
 	}
 
+	// 合併既有的 web/data.json：Yahoo 20y 是滾動窗口，時間往前推會讓最舊的資料掉出窗口，
+	// 若每次都整批覆蓋，滾動窗口外、之前已算好的舊資料就會一直消失。
+	// 這裡以日期為 key 合併：重疊日期用這次新算的(較新/較準)，新資料沒涵蓋到的舊日期則保留。
+	oldByDate := loadExistingWebJSON("web/data.json")
+	mergedDays := mergeWebDays(oldByDate, webDays)
+
 	// 輸出前端網頁用的 JSON
-	writeWebJSON(webDays)
+	writeWebJSON(mergedDays)
+}
+
+// loadExistingWebJSON 讀取先前輸出的 web/data.json(若不存在或解析失敗則回傳空 map)，
+// 做為合併舊資料的基準。
+func loadExistingWebJSON(path string) map[string]MarketDay {
+	result := map[string]MarketDay{}
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return result
+	}
+
+	var old WebOutput
+	if err := json.Unmarshal(b, &old); err != nil {
+		fmt.Printf("解析既有 %s 失敗，略過合併: %v\n", path, err)
+		return result
+	}
+
+	for _, d := range old.Days {
+		result[d.Date] = d
+	}
+	return result
+}
+
+// mergeWebDays 把舊資料(oldByDate)與這次新算出的 newDays 依日期合併，
+// 同一天以新算的為準，新資料沒有的日期則保留舊的，並依日期(字串，格式為 YYYY/MM/DD，可直接字典序排序)由舊到新排序。
+//
+// newDays 裡「Valid=true 但 Total=0」代表這天在本次抓取範圍內往前不足 60 個交易日、
+// 根本沒真的算出新高/新低(假 0，不是真的 0 家)。這種情況要跳過、不覆蓋舊值，
+// 否則抓取範圍縮短、或視窗前緣隨時間位移時，會把先前已經算好的正確資料洗成假 0。
+func mergeWebDays(oldByDate map[string]MarketDay, newDays []MarketDay) []MarketDay {
+	merged := make(map[string]MarketDay, len(oldByDate)+len(newDays))
+	for date, d := range oldByDate {
+		merged[date] = d
+	}
+	for _, d := range newDays {
+		if d.Valid && d.Total == 0 {
+			continue
+		}
+		merged[d.Date] = d
+	}
+
+	dates := make([]string, 0, len(merged))
+	for date := range merged {
+		dates = append(dates, date)
+	}
+	sort.Strings(dates)
+
+	result := make([]MarketDay, len(dates))
+	for i, date := range dates {
+		result[i] = merged[date]
+	}
+	return result
 }
 
 func taipeiNow() time.Time {

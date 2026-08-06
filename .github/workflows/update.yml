@@ -27,8 +27,18 @@ jobs:
         with:
           go-version: "1.21"
 
-      # 每次清空重抓，確保拿到完整 20 年且最新的資料
-      # （不使用 cache：舊檔存在會被跳過而永遠不更新）
+      # 用線上目前的 data.json 當合併基準，避免 repo 裡 commit 的版本過舊、
+      # 導致 Yahoo 抓取範圍(見 main.go 的 dataRange)滾動窗口外、之前已累積的舊資料被覆蓋消失。
+      - name: Restore latest live data.json if available
+        env:
+          PAGE_DATA_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data.json
+        run: |
+          echo "Trying to download live data from ${PAGE_DATA_URL}"
+          curl -fsSL "${PAGE_DATA_URL}" -o web/data.json || echo "Live data not available; keeping committed web/data.json"
+
+      # 每次清空重抓最新資料(抓取範圍由 main.go 的 dataRange 決定，目前為 1y，
+      # 足夠銜接每次執行間的空檔；不使用 cache：舊檔存在會被跳過而永遠不更新)。
+      # 程式內會把上面還原的舊 data.json 與這次新算的結果合併，不會整批覆蓋。
       - name: Run crawler (auto mode, fresh fetch)
         run: go run . -auto -clear
 
