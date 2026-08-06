@@ -210,14 +210,6 @@
       display: none;
     }
 
-    .top10-caption {
-      text-align: left;
-      padding: 10px 10px 8px;
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
-
     .top10-list {
       display: grid;
       gap: 10px;
@@ -490,8 +482,7 @@
         gap: 10px;
       }
 
-      caption,
-      .top10-caption {
+      caption {
         padding: 0 10px 8px;
       }
 
@@ -540,9 +531,9 @@
         <button data-days="7300">近 20 年</button>
       </div>
       <div class="spacer"></div>
-      <button id="toggleDrop">顯示接近跌停圖</button>
       <button id="toggleTable">新低 Top10</button>
-      <button id="toggleDivergence">背離偵測</button>
+      <button id="toggleDivergence">背離</button>
+      <button id="toggleDrop">接近跌停圖</button>
     </div>
     <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大　·　點上方時間範圍即可還原　·　兩張圖同步</p>
 
@@ -557,13 +548,25 @@
         </div>
       </div>
 
-      <div class="card hidden" id="dropCard">
-        <h2 id="dropTitle">大盤 × 單日跌幅 ≥9%（接近跌停）比例</h2>
-        <p class="sub">柱：當日跌幅逾 9% 家數占比（%，左軸）　線：大盤加權指數（右軸）　—— 台股漲跌幅 ±10%，≥9% 約當鎖跌停</p>
-        <div class="chart-box"><canvas id="chartDrop"></canvas></div>
-        <div class="legend">
-          <span><i class="swatch" style="background:var(--series-drop)"></i>單日跌幅≥9%比例</span>
-          <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
+      <div class="card hidden" id="tableCard">
+        <h2>新低 Top10</h2>
+        <p class="sub">歷史新低比例最高 10 天（全期間，不受上方時間範圍影響）</p>
+        <div id="tableView" class="table-scroll">
+          <table class="desktop-top10">
+            <thead>
+              <tr>
+                <th>排名</th>
+                <th>日期</th>
+                <th>大盤收盤</th>
+                <th>新低比例</th>
+                <th>新低家數</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+          <div class="top10-cards">
+            <div id="top10Cards" class="top10-list"></div>
+          </div>
         </div>
       </div>
 
@@ -587,25 +590,15 @@
           </table>
         </div>
       </div>
-    </div>
 
-    <div id="tableView" class="table-scroll hidden">
-      <table class="desktop-top10">
-        <caption>歷史新低比例最高 10 天（全期間，不受上方時間範圍影響）</caption>
-        <thead>
-          <tr>
-            <th>排名</th>
-            <th>日期</th>
-            <th>大盤收盤</th>
-            <th>新低比例</th>
-            <th>新低家數</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-      <div class="top10-cards">
-        <div class="top10-caption">歷史新低比例最高 10 天（全期間，不受上方時間範圍影響）</div>
-        <div id="top10Cards" class="top10-list"></div>
+      <div class="card hidden" id="dropCard">
+        <h2 id="dropTitle">大盤 × 單日跌幅 ≥9%（接近跌停）比例</h2>
+        <p class="sub">柱：當日跌幅逾 9% 家數占比（%，左軸）　線：大盤加權指數（右軸）　—— 台股漲跌幅 ±10%，≥9% 約當鎖跌停</p>
+        <div class="chart-box"><canvas id="chartDrop"></canvas></div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--series-drop)"></i>單日跌幅≥9%比例</span>
+          <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
+        </div>
       </div>
     </div>
 
@@ -924,7 +917,7 @@
       document.querySelectorAll('#ranges button').forEach(b =>
         b.classList.toggle('active', Number(b.dataset.days) === days));
       render();
-      if (!document.getElementById('tableView').classList.contains('hidden')) renderTable();
+      if (!document.getElementById('tableCard').classList.contains('hidden')) renderTable();
     }
 
     document.getElementById('ranges').addEventListener('click', (e) => {
@@ -934,28 +927,29 @@
 
     document.getElementById('toggleDrop').addEventListener('click', () => {
       const card = document.getElementById('dropCard');
+      const btn = document.getElementById('toggleDrop');
       const show = card.classList.contains('hidden');
       card.classList.toggle('hidden', !show);
-      document.getElementById('toggleDrop').textContent = show ? '隱藏接近跌停圖' : '顯示接近跌停圖';
+      btn.classList.toggle('active', show);
       // 圖表若在隱藏容器內建立，尺寸會是 0，展開時重算一次
       if (show && chartDrop) chartDrop.resize();
     });
 
     document.getElementById('toggleTable').addEventListener('click', () => {
-      const tv = document.getElementById('tableView');
-      const charts = document.getElementById('charts');
-      const showTable = tv.classList.contains('hidden');
-      tv.classList.toggle('hidden', !showTable);
-      charts.classList.toggle('hidden', showTable);
-      document.getElementById('toggleTable').textContent = showTable ? '回到圖表' : '新低 Top10';
-      if (showTable) renderTable();
+      const card = document.getElementById('tableCard');
+      const btn = document.getElementById('toggleTable');
+      const show = card.classList.contains('hidden');
+      card.classList.toggle('hidden', !show);
+      btn.classList.toggle('active', show);
+      if (show) renderTable();
     });
 
     document.getElementById('toggleDivergence').addEventListener('click', () => {
       const card = document.getElementById('divergenceCard');
+      const btn = document.getElementById('toggleDivergence');
       const show = card.classList.contains('hidden');
       card.classList.toggle('hidden', !show);
-      document.getElementById('toggleDivergence').textContent = show ? '隱藏背離偵測' : '背離偵測';
+      btn.classList.toggle('active', show);
       if (show) renderDivergence();
     });
 
