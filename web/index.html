@@ -958,7 +958,7 @@
     async function boot() {
       try {
         updateZoomHint();
-        const res = await fetch('./data.json?t=' + Date.now());
+        const res = await fetch('./data.json');
         if (!res.ok) throw new Error('data.json 讀取失敗');
         const json = await res.json();
         ALL = (json.days || []).filter(d => d.date);
