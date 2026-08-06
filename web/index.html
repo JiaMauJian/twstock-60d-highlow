@@ -528,14 +528,14 @@
         <button data-days="1095">近 3 年</button>
         <button data-days="1825">近 5 年</button>
         <button data-days="3650">近 10 年</button>
-        <button data-days="7300">近 20 年</button>
+        <button data-days="0">全部</button>
       </div>
       <div class="spacer"></div>
       <button id="toggleTable">新低 Top10</button>
       <button id="toggleDivergence">背離</button>
       <button id="toggleDrop">接近跌停圖</button>
     </div>
-    <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大　·　點上方時間範圍即可還原　·　兩張圖同步</p>
+    <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大</p>
 
     <div id="charts">
       <div class="card">
@@ -895,8 +895,8 @@
     function updateZoomHint() {
       const isMobile = window.matchMedia('(max-width: 768px)').matches;
       document.getElementById('zoomHint').textContent = isMobile
-        ? '縮放：雙指縮放　·　點上方時間區間可還原'
-        : '縮放：滑鼠滾輪 / 拖曳框選放大　·　點上方時間範圍即可還原　·　兩張圖同步';
+        ? '縮放：雙指縮放'
+        : '縮放：滑鼠滾輪 / 拖曳框選放大';
     }
 
     function renderSummary() {
