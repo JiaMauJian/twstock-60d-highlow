@@ -320,6 +320,16 @@
       border-radius: 12px;
     }
 
+    .divergence-scroll {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .divergence-scroll table {
+      min-width: 480px;
+    }
+
     caption {
       text-align: left;
       padding: 10px 10px 8px;
@@ -532,6 +542,7 @@
       <div class="spacer"></div>
       <button id="toggleDrop">顯示接近跌停圖</button>
       <button id="toggleTable">新低 Top10</button>
+      <button id="toggleDivergence">背離偵測</button>
     </div>
     <p class="hint" id="zoomHint">縮放：滑鼠滾輪 / 拖曳框選放大　·　點上方時間範圍即可還原　·　兩張圖同步</p>
 
@@ -553,6 +564,27 @@
         <div class="legend">
           <span><i class="swatch" style="background:var(--series-drop)"></i>單日跌幅≥9%比例</span>
           <span><i class="swatch" style="background:var(--series-index)"></i>大盤指數</span>
+        </div>
+      </div>
+
+      <div class="card hidden" id="divergenceCard">
+        <h2>背離偵測（大盤下跌 × 創新低強度逐波墊高）</h2>
+        <p class="sub">近60個交易日大盤跌幅 ≤ -5%，且創新低比例的波段高峰(近25日內)較60日前墊高 ≥10個百分點，持續至少10個交易日（容許5天內斷點）——用來抓「緩跌」型態，不只是單日重挫</p>
+        <p class="sub" id="divergenceStatus">計算中…</p>
+        <div class="divergence-scroll">
+          <table>
+            <caption>歷史偵測到的背離期間（全期間，最新在前）</caption>
+            <thead>
+              <tr>
+                <th>開始</th>
+                <th>結束</th>
+                <th>天數</th>
+                <th>大盤跌幅</th>
+                <th>新低強度墊高</th>
+              </tr>
+            </thead>
+            <tbody id="divergenceBody"></tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -598,6 +630,16 @@
     let rangeDays = 365; // 目前選取範圍
     let chartLow = null, chartDrop = null;
     let syncing = false; // 防止兩圖同步縮放時互相觸發成無限迴圈
+
+    // 背離偵測參數：大盤下跌 且 創新低強度(波段高峰)逐波墊高
+    const DIVERGENCE = {
+      trendWindow: 60,   // 大盤趨勢比較的天數(跟季線一致)
+      peakWindow: 25,    // 抓「這一波高峰強度」用的滾動最大值視窗
+      priceTh: -5,       // 大盤跌幅門檻(%)
+      peakTh: 10,        // 新低強度墊高門檻(百分點)
+      minDuration: 10,   // 至少要連續(允許斷點)幾個交易日才算一段
+      gapTolerance: 5,   // 允許中間斷幾天仍算同一段
+    };
 
     // 註冊縮放外掛（CDN script 版全域名稱可能不同，兩種都試）
     (function registerZoom() {
@@ -789,6 +831,74 @@
       document.getElementById('top10Cards').innerHTML = cards;
     }
 
+    // 背離偵測：大盤近 trendWindow 天下跌超過門檻，同時創新低比例的波段高峰(近 peakWindow 天內滾動最大值)
+    // 比 trendWindow 天前墊高超過門檻 —— 用來抓「緩跌」型態：指數做低點，新低強度卻一波比一波高
+    function computeDivergence() {
+      const { trendWindow, peakWindow, priceTh, peakTh, minDuration, gapTolerance } = DIVERGENCE;
+      const valid = ALL.filter(d => d.valid !== false);
+      const n = valid.length;
+
+      const peak = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const lo = Math.max(0, i - peakWindow + 1);
+        let m = 0;
+        for (let j = lo; j <= i; j++) m = Math.max(m, valid[j].lowPct);
+        peak[i] = m;
+      }
+
+      const flagged = [];
+      for (let i = trendWindow; i < n; i++) {
+        const c0 = valid[i - trendWindow].close, c1 = valid[i].close;
+        if (!c0) continue;
+        const priceChg = (c1 - c0) / c0 * 100;
+        const peakChg = peak[i] - peak[i - trendWindow];
+        if (priceChg <= priceTh && peakChg >= peakTh) flagged.push({ i, priceChg, peakChg });
+      }
+
+      const episodes = [];
+      let cur = [];
+      for (const f of flagged) {
+        if (cur.length && f.i - cur[cur.length - 1].i > gapTolerance) {
+          episodes.push(cur);
+          cur = [];
+        }
+        cur.push(f);
+      }
+      if (cur.length) episodes.push(cur);
+
+      return episodes
+        .filter(e => (e[e.length - 1].i - e[0].i + 1) >= minDuration)
+        .map(e => {
+          const s = e[0].i, en = e[e.length - 1].i;
+          return {
+            startDate: valid[s].date,
+            endDate: valid[en].date,
+            days: en - s + 1,
+            worstPrice: Math.min(...e.map(x => x.priceChg)),
+            maxPeak: Math.max(...e.map(x => x.peakChg)),
+            isActive: en === n - 1,
+          };
+        });
+    }
+
+    function renderDivergence() {
+      const episodes = computeDivergence().slice().reverse(); // 最新在前
+      const active = episodes.find(e => e.isActive);
+      const statusEl = document.getElementById('divergenceStatus');
+      statusEl.textContent = active
+        ? `⚠ 目前處於背離期間中(自 ${active.startDate} 起，大盤跌 ${active.worstPrice.toFixed(1)}%，新低強度墊高 +${active.maxPeak.toFixed(1)} 個百分點)`
+        : `目前未偵測到背離期間`;
+      document.getElementById('divergenceBody').innerHTML = episodes.length
+        ? episodes.map(e => `<tr>
+            <td>${e.startDate}</td>
+            <td>${e.endDate}${e.isActive ? '（進行中）' : ''}</td>
+            <td>${e.days}</td>
+            <td>${e.worstPrice.toFixed(1)}%</td>
+            <td>+${e.maxPeak.toFixed(1)}pt</td>
+          </tr>`).join('')
+        : `<tr><td colspan="5">尚無符合條件的歷史區間</td></tr>`;
+    }
+
     function updateZoomHint() {
       const isMobile = window.matchMedia('(max-width: 768px)').matches;
       document.getElementById('zoomHint').textContent = isMobile
@@ -839,6 +949,14 @@
       charts.classList.toggle('hidden', showTable);
       document.getElementById('toggleTable').textContent = showTable ? '回到圖表' : '新低 Top10';
       if (showTable) renderTable();
+    });
+
+    document.getElementById('toggleDivergence').addEventListener('click', () => {
+      const card = document.getElementById('divergenceCard');
+      const show = card.classList.contains('hidden');
+      card.classList.toggle('hidden', !show);
+      document.getElementById('toggleDivergence').textContent = show ? '隱藏背離偵測' : '背離偵測';
+      if (show) renderDivergence();
     });
 
     window.addEventListener('resize', updateZoomHint);
